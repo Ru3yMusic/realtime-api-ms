@@ -1,0 +1,73 @@
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { EMPTY, from } from 'rxjs';
+import { catchError, concatMap } from 'rxjs/operators';
+import { randomUUID } from 'crypto';
+import { KafkaStreamsService } from '../../kafka/kafka-streams.service';
+import { KafkaProducerService } from '../../kafka/kafka.producer';
+import { CommentsService } from '../comments.service';
+import {
+  CommentLikedEvent,
+  NotificationEventType,
+  TOPICS,
+} from '../../common/types/avro-events.types';
+
+/**
+ * Stream handler for realtime.comment.liked.
+ *
+ * Uses concatMap (sequential) because $inc on likes_count must not race.
+ * Unlike events are signalled by liker_username prefixed with "UNLIKE:".
+ */
+@Injectable()
+export class CommentLikedHandler implements OnModuleInit {
+  private readonly logger = new Logger(CommentLikedHandler.name);
+
+  constructor(
+    private readonly streams: KafkaStreamsService,
+    private readonly commentsService: CommentsService,
+    private readonly kafkaProducer: KafkaProducerService,
+  ) {}
+
+  onModuleInit(): void {
+    this.streams
+      .stream<CommentLikedEvent>(TOPICS.COMMENT_LIKED)
+      .pipe(
+        concatMap(({ value }) =>
+          from(this.handle(value)).pipe(
+            catchError((err) => {
+              this.logger.error(`Failed to process comment.liked: ${value.comment_id}`, err);
+              return EMPTY;
+            }),
+          ),
+        ),
+      )
+      .subscribe();
+
+    this.logger.log('Subscribed to stream: ' + TOPICS.COMMENT_LIKED);
+  }
+
+  private async handle(event: CommentLikedEvent): Promise<void> {
+    const isUnlike = event.liker_username.startsWith('UNLIKE:');
+
+    if (isUnlike) {
+      await this.commentsService.decrementLikes(event.comment_id, event.liker_id);
+      return;
+    }
+
+    await this.commentsService.incrementLikes(event.comment_id, event.liker_id);
+
+    // Do not notify on self-like
+    if (event.liker_id === event.comment_author_id) return;
+
+    await this.kafkaProducer.publishNotificationPush({
+      notification_id: randomUUID(),
+      recipient_id:    event.comment_author_id,
+      actor_id:        event.liker_id,
+      actor_username:  event.liker_username,
+      actor_photo_url: event.liker_photo_url ?? null,
+      type:            NotificationEventType.COMMENT_REACTION,
+      target_id:       event.comment_id,
+      target_type:     'COMMENT',
+      timestamp:       event.timestamp,
+    });
+  }
+}

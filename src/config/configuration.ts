@@ -1,0 +1,18 @@
+export default () => ({
+  port: parseInt(process.env.PORT ?? '3002', 10),
+  mongodb: {
+    uri: process.env.MONGODB_URI ?? 'mongodb://localhost:27017/realtime_db',
+  },
+  redis: {
+    host: process.env.REDIS_HOST ?? 'localhost',
+    port: parseInt(process.env.REDIS_PORT ?? '6379', 10),
+  },
+  kafka: {
+    broker:       process.env.KAFKA_BROKER          ?? 'localhost:9092',
+    groupIdAvro:  process.env.KAFKA_GROUP_ID_AVRO   ?? 'realtime-api-ms-avro',
+    groupIdJson:  process.env.KAFKA_GROUP_ID_JSON    ?? 'realtime-api-ms-json',
+  },
+  schemaRegistry: {
+    url: process.env.SCHEMA_REGISTRY_URL ?? '',
+  },
+});
