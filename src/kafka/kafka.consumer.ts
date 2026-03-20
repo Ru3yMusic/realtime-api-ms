@@ -58,13 +58,14 @@ export class KafkaConsumerService implements OnModuleInit, OnModuleDestroy {
     this.logger.log(`Avro consumer subscribed to: ${AVRO_TOPICS.join(', ')}`);
   }
 
-  private async handleAvro({ topic, message, partition, offset }: EachMessagePayload): Promise<void> {
+  private async handleAvro({ topic, message, partition }: EachMessagePayload): Promise<void> {
     if (!message.value) return;
+    const offset = message.offset;
     try {
       const value = this.schemaRegistry.decode(topic, message.value);
       this.streams.dispatch({
         topic, partition,
-        offset: offset.toString(),
+        offset,
         key: message.key?.toString() ?? null,
         value,
         timestamp: message.timestamp,
@@ -87,13 +88,14 @@ export class KafkaConsumerService implements OnModuleInit, OnModuleDestroy {
     this.logger.log(`JSON consumer subscribed to: ${JSON_TOPICS.join(', ')}`);
   }
 
-  private async handleJson({ topic, message, partition, offset }: EachMessagePayload): Promise<void> {
+  private async handleJson({ topic, message, partition }: EachMessagePayload): Promise<void> {
     if (!message.value) return;
+    const offset = message.offset;
     try {
       const value = JSON.parse(message.value.toString());
       this.streams.dispatch({
         topic, partition,
-        offset: offset.toString(),
+        offset,
         key: message.key?.toString() ?? null,
         value,
         timestamp: message.timestamp,

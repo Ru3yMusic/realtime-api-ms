@@ -8,6 +8,8 @@ async function bootstrap() {
 
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
   app.useGlobalFilters(new GlobalExceptionFilter());
+  // Health endpoint registered before globalPrefix so it stays at /health (used by Docker)
+  app.getHttpAdapter().get('/health', (_req, res) => res.json({ status: 'ok' }));
   app.setGlobalPrefix('api');
   app.enableCors();
 

@@ -6,6 +6,7 @@ import { CommentsService } from './comments.service';
 import { CommentsController } from './comments.controller';
 import { CommentCreatedHandler } from './handlers/comment-created.handler';
 import { CommentLikedHandler } from './handlers/comment-liked.handler';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
   imports: [
@@ -13,6 +14,7 @@ import { CommentLikedHandler } from './handlers/comment-liked.handler';
       { name: Comment.name,     schema: CommentSchema     },
       { name: CommentLike.name, schema: CommentLikeSchema },
     ]),
+    NotificationsModule,
   ],
   providers: [CommentsService, CommentCreatedHandler, CommentLikedHandler],
   controllers: [CommentsController],

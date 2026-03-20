@@ -5,6 +5,7 @@ import { randomUUID } from 'crypto';
 import { KafkaStreamsService } from '../../kafka/kafka-streams.service';
 import { KafkaProducerService } from '../../kafka/kafka.producer';
 import { CommentsService } from '../comments.service';
+import { NotificationsService } from '../../notifications/notifications.service';
 import {
   CommentCreatedEvent,
   NotificationEventType,
@@ -28,6 +29,7 @@ export class CommentCreatedHandler implements OnModuleInit {
     private readonly streams: KafkaStreamsService,
     private readonly commentsService: CommentsService,
     private readonly kafkaProducer: KafkaProducerService,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   onModuleInit(): void {
@@ -57,8 +59,21 @@ export class CommentCreatedHandler implements OnModuleInit {
     // Notify mentioned users (skip self-mentions)
     const mentions = (event.mentions ?? []).filter((uid) => uid !== event.user_id);
     await Promise.all(
-      mentions.map((mentionedUserId) =>
-        this.kafkaProducer.publishNotificationPush({
+      mentions.map(async (mentionedUserId) => {
+        // Persist notification to MongoDB so it appears in GET /notifications
+        await this.notificationsService.create({
+          user_id:        mentionedUserId,
+          actor_id:       event.user_id,
+          actor_username: event.username,
+          actor_photo_url: event.profile_photo_url ?? null,
+          type:           NotificationEventType.MENTION,
+          target_id:      event.comment_id,
+          target_type:    'COMMENT',
+        });
+        // Increment Redis badge for offline delivery
+        await this.notificationsService.incrementBadges(mentionedUserId, { notification: true });
+        // Push via Kafka → ws-ms → WebSocket (for online users)
+        await this.kafkaProducer.publishNotificationPush({
           notification_id: randomUUID(),
           recipient_id:    mentionedUserId,
           actor_id:        event.user_id,
@@ -68,8 +83,8 @@ export class CommentCreatedHandler implements OnModuleInit {
           target_id:       event.comment_id,
           target_type:     'COMMENT',
           timestamp:       event.timestamp,
-        }),
-      ),
+        });
+      }),
     );
 
     if (mentions.length > 0) {
