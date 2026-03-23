@@ -3,8 +3,8 @@ dist/
 node_modules/
 
 # Env
-.env
-*.env.local
+# .env
+# *.env.local
 
 # OS
 .DS_Store
