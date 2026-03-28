@@ -20,8 +20,9 @@ export class NotificationsController {
     @Headers('x-user-id') userId: string,
     @Query('page') page = '0',
     @Query('size') size = '20',
+    @Query('type') type?: string,
   ) {
-    const { data, total } = await this.service.findByUser(userId, +page, +size);
+    const { data, total } = await this.service.findByUser(userId, +page, +size, type);
     return { content: data, total, page: +page, size: +size };
   }
 

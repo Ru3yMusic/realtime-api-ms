@@ -42,8 +42,10 @@ export class NotificationsService {
     userId: string,
     page = 0,
     size = 20,
+    type?: string,
   ): Promise<{ data: NotificationDocument[]; total: number }> {
-    const filter = { user_id: userId, is_deleted: false };
+    const filter: Record<string, any> = { user_id: userId, is_deleted: false };
+    if (type) filter.type = type;
     const [data, total] = await Promise.all([
       this.model.find(filter).sort({ created_at: -1 }).skip(page * size).limit(size),
       this.model.countDocuments(filter),
