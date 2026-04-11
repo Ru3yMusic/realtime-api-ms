@@ -3,7 +3,7 @@ dist/
 node_modules/
 
 # Env
-# .env
+.env
 # *.env.local
 
 # OS
