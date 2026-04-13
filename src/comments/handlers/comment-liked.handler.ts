@@ -16,7 +16,7 @@ import {
  * Stream handler for realtime.comment.liked.
  *
  * Uses concatMap (sequential) because $inc on likes_count must not race.
- * Unlike events are signalled by liker_username prefixed with "UNLIKE:".
+ * Unlike events are signalled by action === 'unlike' (explicit field — no prefix hack).
  */
 @Injectable()
 export class CommentLikedHandler implements OnModuleInit {
@@ -48,7 +48,7 @@ export class CommentLikedHandler implements OnModuleInit {
   }
 
   private async handle(event: CommentLikedEvent): Promise<void> {
-    const isUnlike = event.liker_username.startsWith('UNLIKE:');
+    const isUnlike = event.action === 'unlike';
 
     if (isUnlike) {
       await this.commentsService.decrementLikes(event.comment_id, event.liker_id);

@@ -28,6 +28,46 @@ export class KafkaProducerService implements OnModuleInit, OnModuleDestroy {
     await this.producer.disconnect();
   }
 
+  /**
+   * Publish a failed message to its Dead-Letter Queue (`{topic}.dlq`).
+   * Wraps the original payload as base64 and attaches structured error metadata.
+   * If the DLQ publish itself fails, logs everything for manual recovery — never throws.
+   */
+  async publishToDlq(topic: string, message: any, error: Error): Promise<void> {
+    const dlqTopic = `${topic}.dlq`;
+    try {
+      await this.producer.send({
+        topic: dlqTopic,
+        messages: [
+          {
+            key: message.key?.toString(),
+            value: JSON.stringify({
+              originalTopic:     topic,
+              originalPartition: message.partition,
+              originalOffset:    message.offset,
+              error:             error.message,
+              errorStack:        error.stack,
+              timestamp:         new Date().toISOString(),
+              rawPayload:        message.value?.toString('base64'),
+            }),
+            headers: {
+              'dlq.error':          error.message,
+              'dlq.original-topic': topic,
+            },
+          },
+        ],
+      });
+      this.logger.warn(`Message sent to DLQ: ${dlqTopic}`);
+    } catch (dlqError) {
+      this.logger.error(`Failed to publish to DLQ ${dlqTopic}`, dlqError);
+      // Message is lost at this point — log full payload for manual recovery
+      this.logger.error('Lost message payload', {
+        topic,
+        message: message.value?.toString(),
+      });
+    }
+  }
+
   /** Publish notification.push so realtime-ws-ms pushes it to the recipient via WebSocket. */
   async publishNotificationPush(event: NotificationPushEvent): Promise<void> {
     const value = this.schemaRegistry.encode(TOPICS.NOTIFICATION_PUSH, event);

@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Notification, NotificationDocument } from './schemas/notification.schema';
@@ -22,6 +22,8 @@ export interface BadgeIncrement {
 
 @Injectable()
 export class NotificationsService {
+  private readonly logger = new Logger(NotificationsService.name);
+
   constructor(
     @InjectModel(Notification.name) private model: Model<NotificationDocument>,
     private readonly redis: RedisService,
@@ -64,10 +66,34 @@ export class NotificationsService {
   }
 
   async markAllAsRead(userId: string): Promise<void> {
-    await Promise.all([
-      this.model.updateMany({ user_id: userId, is_read: false }, { $set: { is_read: true } }),
-      this.redis.clearNotificationBadge(userId),
-    ]);
+    // 1. Capture current badge count (for compensation reference)
+    const previousBadge = await this.redis.getNotificationBadge(userId);
+
+    // 2. Update MongoDB first — source of truth
+    await this.model.updateMany(
+      { user_id: userId, is_read: false },
+      { $set: { is_read: true } },
+    );
+
+    // 3. Clear Redis badge (derived state) — with retry compensation
+    try {
+      await this.redis.clearNotificationBadge(userId);
+    } catch (redisError) {
+      this.logger.error(
+        `Redis badge clear failed for user ${userId} (badge was ${previousBadge}), retrying...`,
+        redisError,
+      );
+      try {
+        await this.redis.clearNotificationBadge(userId);
+      } catch (retryError) {
+        this.logger.error(
+          `Redis badge clear retry failed for user ${userId} — badge may be stale`,
+          retryError,
+        );
+        // Do NOT throw — MongoDB is already updated (source of truth).
+        // Badge self-corrects on next notification or read operation.
+      }
+    }
   }
 
   async softDelete(notificationId: string, userId: string): Promise<void> {

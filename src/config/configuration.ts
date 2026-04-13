@@ -1,5 +1,7 @@
 export default () => ({
   port: parseInt(process.env.PORT ?? '3002', 10),
+  // RSA public key for JWT verification (RS256). Env var may use literal \n — normalised at use site.
+  jwtPublicKey: process.env.JWT_PUBLIC_KEY ?? '',
   mongodb: {
     uri: process.env.MONGODB_URI ?? 'mongodb://localhost:27017/realtime_db',
   },

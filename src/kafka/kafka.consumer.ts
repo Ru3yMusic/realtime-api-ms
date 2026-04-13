@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { Consumer, EachMessagePayload, Kafka } from 'kafkajs';
 import { SchemaRegistryService } from '../schema-registry/schema-registry.service';
 import { KafkaStreamsService } from './kafka-streams.service';
+import { KafkaProducerService } from './kafka.producer';
 import { AVRO_TOPICS, JSON_TOPICS } from '../common/types/avro-events.types';
 
 /**
@@ -24,6 +25,7 @@ export class KafkaConsumerService implements OnModuleInit, OnModuleDestroy {
     private readonly config: ConfigService,
     private readonly schemaRegistry: SchemaRegistryService,
     private readonly streams: KafkaStreamsService,
+    private readonly producer: KafkaProducerService,
   ) {}
 
   async onModuleInit(): Promise<void> {
@@ -72,7 +74,7 @@ export class KafkaConsumerService implements OnModuleInit, OnModuleDestroy {
       });
     } catch (err) {
       this.logger.error(`Avro decode failed — topic: ${topic}, offset: ${offset}`, err);
-      await this.publishToDlq(topic, message.value, err);
+      await this.producer.publishToDlq(topic, message, err);
     }
   }
 
@@ -105,10 +107,6 @@ export class KafkaConsumerService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  // ── Dead-letter queue ─────────────────────────────────────────────────────
-
-  private async publishToDlq(topic: string, rawValue: Buffer, err: Error): Promise<void> {
-    // Future: inject a DLQ producer and publish to `realtime.dlq`
-    this.logger.warn(`DLQ: topic=${topic}, error=${err.message}`);
-  }
+  // DLQ is delegated to KafkaProducerService.publishToDlq
 }
+

@@ -5,11 +5,11 @@ import {
   Delete,
   Param,
   Query,
-  Headers,
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
 import { NotificationsService } from './notifications.service';
+import { CurrentUserId } from '../common/decorators/current-user-id.decorator';
 
 @Controller('notifications')
 export class NotificationsController {
@@ -17,7 +17,7 @@ export class NotificationsController {
 
   @Get()
   async list(
-    @Headers('x-user-id') userId: string,
+    @CurrentUserId() userId: string,
     @Query('page') page = '0',
     @Query('size') size = '20',
     @Query('type') type?: string,
@@ -27,30 +27,30 @@ export class NotificationsController {
   }
 
   @Get('badges')
-  async getBadges(@Headers('x-user-id') userId: string) {
+  async getBadges(@CurrentUserId() userId: string) {
     return this.service.getBadges(userId);
   }
 
   @Patch('read-all')
   @HttpCode(HttpStatus.NO_CONTENT)
-  async markAllAsRead(@Headers('x-user-id') userId: string) {
+  async markAllAsRead(@CurrentUserId() userId: string) {
     await this.service.markAllAsRead(userId);
   }
 
   @Patch(':id/read')
-  async markAsRead(@Param('id') id: string, @Headers('x-user-id') userId: string) {
+  async markAsRead(@Param('id') id: string, @CurrentUserId() userId: string) {
     return this.service.markAsRead(id, userId);
   }
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  async delete(@Param('id') id: string, @Headers('x-user-id') userId: string) {
+  async delete(@Param('id') id: string, @CurrentUserId() userId: string) {
     await this.service.softDelete(id, userId);
   }
 
   @Delete('badges/friends')
   @HttpCode(HttpStatus.NO_CONTENT)
-  async clearFriendBadge(@Headers('x-user-id') userId: string) {
+  async clearFriendBadge(@CurrentUserId() userId: string) {
     await this.service.clearFriendBadge(userId);
   }
 }

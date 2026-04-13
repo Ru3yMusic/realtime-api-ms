@@ -1,0 +1,15 @@
+{
+  "type": "record",
+  "name": "ChatMessage",
+  "namespace": "com.rubymusic.realtime",
+  "fields": [
+    {"name": "message_id",        "type": "string"},
+    {"name": "station_id",        "type": "string"},
+    {"name": "user_id",           "type": "string"},
+    {"name": "username",          "type": "string"},
+    {"name": "profile_photo_url", "type": ["null", "string"], "default": null},
+    {"name": "content",           "type": "string"},
+    {"name": "mentions",          "type": {"type": "array", "items": "string"}},
+    {"name": "timestamp",         "type": "string"}
+  ]
+}

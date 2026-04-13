@@ -7,6 +7,7 @@ export const TOPICS = {
   COMMENT_CREATED:    'realtime.comment.created',
   COMMENT_LIKED:      'realtime.comment.liked',
   NOTIFICATION_PUSH:  'realtime.notification.push',
+  CHAT_MESSAGE:       'realtime.chat.message',
   // JSON topics from Spring Boot social-service
   FRIEND_REQUEST:     'user.friend.request',
   FRIEND_ACCEPTED:    'user.friend.accepted',
@@ -17,7 +18,7 @@ export type Topic = (typeof TOPICS)[keyof typeof TOPICS];
 export const AVRO_TOPICS: string[] = [
   'realtime.comment.created',
   'realtime.comment.liked',
-  'realtime.notification.push',
+  'realtime.chat.message',
 ];
 
 export const JSON_TOPICS: string[] = [
@@ -46,6 +47,8 @@ export interface CommentLikedEvent {
   song_id:           string;
   station_id:        string;
   timestamp:         number;
+  /** Explicit discriminator: 'like' | 'unlike'. Replaces the UNLIKE: prefix hack. */
+  action:            'like' | 'unlike';
 }
 
 export interface NotificationPushEvent {
@@ -65,6 +68,17 @@ export enum NotificationEventType {
   MENTION          = 'MENTION',
   FRIEND_REQUEST   = 'FRIEND_REQUEST',
   FRIEND_ACCEPTED  = 'FRIEND_ACCEPTED',
+}
+
+export interface ChatMessageEvent {
+  message_id:        string;
+  station_id:        string;
+  user_id:           string;
+  username:          string;
+  profile_photo_url: string | null;
+  content:           string;
+  mentions:          string[];
+  timestamp:         string;
 }
 
 export interface FriendRequestEvent {

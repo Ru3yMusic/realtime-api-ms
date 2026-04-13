@@ -4,11 +4,11 @@ import {
   Delete,
   Param,
   Query,
-  Headers,
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
 import { CommentsService } from './comments.service';
+import { CurrentUserId } from '../common/decorators/current-user-id.decorator';
 
 @Controller('comments')
 export class CommentsController {
@@ -28,7 +28,7 @@ export class CommentsController {
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  async delete(@Param('id') commentEventId: string, @Headers('x-user-id') userId: string) {
+  async delete(@Param('id') commentEventId: string, @CurrentUserId() userId: string) {
     await this.service.deleteByEventId(commentEventId, userId);
   }
 }
