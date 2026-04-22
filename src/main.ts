@@ -11,7 +11,9 @@ async function bootstrap() {
   // Health endpoint registered before globalPrefix so it stays at /health (used by Docker)
   app.getHttpAdapter().get('/health', (_req, res) => res.json({ status: 'ok' }));
   app.setGlobalPrefix('api');
-  app.enableCors();
+  // CORS is handled exclusively by api-gateway. Do NOT enable here.
+  // Enabling CORS at both layers results in a duplicated
+  // "Access-Control-Allow-Origin: *, *" header that browsers reject.
 
   const port = process.env.PORT ?? 3002;
   await app.listen(port);

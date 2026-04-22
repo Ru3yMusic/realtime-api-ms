@@ -40,8 +40,10 @@ export class FriendRequestHandler implements OnModuleInit {
   }
 
   private async handle(event: FriendRequestEvent): Promise<void> {
-    // Persist notification in MongoDB
-    await this.notificationsService.create({
+    // Persist notification in MongoDB. Reuse the created document's _id as the
+    // push event's notification_id so the frontend collapses WS + historical
+    // loads into a single card (dedupe-by-id only works when they match).
+    const notification = await this.notificationsService.create({
       user_id:        event.addresseeId,
       actor_id:       event.requesterId,
       actor_username: event.requesterUsername ?? event.requesterId,
@@ -56,7 +58,7 @@ export class FriendRequestHandler implements OnModuleInit {
 
     // Push via Kafka → ws-ms → WebSocket
     await this.kafkaProducer.publishNotificationPush({
-      notification_id: randomUUID(),
+      notification_id: notification._id.toString(),
       recipient_id:    event.addresseeId,
       actor_id:        event.requesterId,
       actor_username:  event.requesterUsername ?? event.requesterId,
