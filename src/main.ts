@@ -1,5 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
+import { getConnectionToken } from '@nestjs/mongoose';
+import { Connection } from 'mongoose';
 import { NodeSDK } from '@opentelemetry/sdk-node';
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
 import { getNodeAutoInstrumentations } from '@opentelemetry/auto-instrumentations-node';
@@ -28,8 +30,19 @@ async function bootstrap() {
 
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
   app.useGlobalFilters(new GlobalExceptionFilter());
-  // Health endpoint registered before globalPrefix so it stays at /health (used by Docker)
-  app.getHttpAdapter().get('/health', (_req, res) => res.json({ status: 'ok' }));
+  // Health endpoint registered before globalPrefix so it stays at /health (used by Docker).
+  // Verifies the Mongo connection is in "connected" state (readyState === 1). If any
+  // dependency is degraded the endpoint responds 503 so the orchestrator stops routing
+  // traffic to this instance and restarts it on its own policy. Happy path stays 200.
+  const mongoConnection = app.get<Connection>(getConnectionToken());
+  app.getHttpAdapter().get('/health', (_req, res) => {
+    const mongoOk = mongoConnection?.readyState === 1;
+    if (mongoOk) {
+      res.json({ status: 'ok', mongo: 'up' });
+    } else {
+      res.status(503).json({ status: 'degraded', mongo: 'down' });
+    }
+  });
   app.getHttpAdapter().get('/metrics', async (_req, res) => {
     res.setHeader('Content-Type', register.contentType);
     res.send(await register.metrics());

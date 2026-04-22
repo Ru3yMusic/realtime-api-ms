@@ -77,13 +77,30 @@ export class KafkaProducerService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  /** Publish notification.push so realtime-ws-ms pushes it to the recipient via WebSocket. */
+  /**
+   * Publish notification.push so realtime-ws-ms pushes it to the recipient via WebSocket.
+   *
+   * Failure mode: if the publish fails (broker down, schema registry unavailable,
+   * payload encode error) the error is logged but NOT re-thrown. The notification
+   * has already been persisted in Mongo by the caller; re-throwing here would
+   * advance the Kafka offset of the upstream event all the same (notif lost AND
+   * consumer crashes). Logging keeps the failure visible without blowing up the
+   * handler pipeline. The user will still see the notification after refresh via
+   * the HTTP notifications history — the WS push is just the realtime hint.
+   */
   async publishNotificationPush(event: NotificationPushEvent): Promise<void> {
-    const value = this.schemaRegistry.encode(TOPICS.NOTIFICATION_PUSH, event);
-    await this.producer.send({
-      topic: TOPICS.NOTIFICATION_PUSH,
-      messages: [{ key: event.recipient_id, value }],
-    });
-    this.logger.debug(`Published notification.push → ${event.recipient_id} (${event.type})`);
+    try {
+      const value = this.schemaRegistry.encode(TOPICS.NOTIFICATION_PUSH, event);
+      await this.producer.send({
+        topic: TOPICS.NOTIFICATION_PUSH,
+        messages: [{ key: event.recipient_id, value }],
+      });
+      this.logger.debug(`Published notification.push → ${event.recipient_id} (${event.type})`);
+    } catch (err) {
+      this.logger.error(
+        `Failed to publish notification.push → recipient=${event.recipient_id} type=${event.type}`,
+        err,
+      );
+    }
   }
 }

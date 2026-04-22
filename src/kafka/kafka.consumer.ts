@@ -112,7 +112,11 @@ export class KafkaConsumerService implements OnModuleInit, OnModuleDestroy {
         timestamp: message.timestamp,
       });
     } catch (err) {
+      // Same DLQ strategy as the Avro consumer — without this, malformed
+      // JSON events (user.friend.request / user.friend.accepted) were lost
+      // with only a log line and no post-mortem trail.
       this.logger.error(`JSON decode failed — topic: ${topic}, offset: ${offset}`, err);
+      await this.producer.publishToDlq(topic, message, err as Error);
     }
   }
 
