@@ -35,7 +35,9 @@ async function bootstrap() {
     res.send(await register.metrics());
   });
   app.setGlobalPrefix('api');
-  app.enableCors();
+  // CORS is handled exclusively by api-gateway. Do NOT enable here.
+  // Enabling CORS at both layers results in a duplicated
+  // "Access-Control-Allow-Origin: *, *" header that browsers reject.
 
   const port = process.env.PORT ?? 3002;
   await app.listen(port);

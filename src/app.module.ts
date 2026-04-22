@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
 import { APP_GUARD } from '@nestjs/core';
+import { resolve } from 'node:path';
 import configuration from './config/configuration';
 import { SchemaRegistryModule } from './schema-registry/schema-registry.module';
 import { RedisModule } from './redis/redis.module';
@@ -13,7 +14,14 @@ import { JwtGuard } from './common/guards/jwt.guard';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true, load: [configuration] }),
+    // envFilePath anclado a __dirname (= dist/ en runtime), NO al cwd del
+    // proceso. Así el .env del servicio se carga sin importar desde dónde
+    // se lance (npm --prefix, IntelliJ Run Config, docker, etc.).
+    ConfigModule.forRoot({
+      isGlobal: true,
+      load: [configuration],
+      envFilePath: resolve(__dirname, '..', '.env'),
+    }),
     MongooseModule.forRoot(process.env.MONGODB_URI ?? 'mongodb://localhost:27017/realtime_db'),
     SchemaRegistryModule,
     RedisModule,

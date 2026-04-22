@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Delete,
+  NotFoundException,
   Param,
   Query,
   HttpCode,
@@ -24,6 +25,26 @@ export class CommentsController {
   ) {
     const { data, total } = await this.service.findBySong({ songId, stationId, sort, page: +page, size: +size });
     return { content: data, total, page: +page, size: +size };
+  }
+
+  /**
+   * Lookup a single comment by its client-generated idempotency key
+   * (comment_event_id). Consumed by:
+   *   - admin "Gestión de reportes": resolve the comment's author.
+   *   - user notifications "Ir" button on MENTION items: resolve the station
+   *     to navigate to (notifications only persist target_id = commentId).
+   */
+  @Get(':id')
+  async getById(@Param('id') commentEventId: string) {
+    const doc = await this.service.findByEventId(commentEventId);
+    if (!doc) throw new NotFoundException('Comment not found');
+    return {
+      user_id:           doc.user_id,
+      username:          doc.username,
+      profile_photo_url: doc.profile_photo_url,
+      content:           doc.content,
+      station_id:        doc.station_id,
+    };
   }
 
   @Delete(':id')

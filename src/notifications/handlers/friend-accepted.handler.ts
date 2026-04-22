@@ -40,8 +40,10 @@ export class FriendAcceptedHandler implements OnModuleInit {
   }
 
   private async handle(event: FriendAcceptedEvent): Promise<void> {
-    // Notify the original requester that their request was accepted
-    await this.notificationsService.create({
+    // Notify the original requester that their request was accepted. Reuse
+    // the persisted _id as the push event's notification_id so dedupe-by-id
+    // on the frontend (WS vs historical load) produces a single card.
+    const notification = await this.notificationsService.create({
       user_id:        event.requesterId,
       actor_id:       event.addresseeId,
       actor_username: event.addresseeUsername ?? event.addresseeId,
@@ -54,7 +56,7 @@ export class FriendAcceptedHandler implements OnModuleInit {
     await this.notificationsService.incrementBadges(event.requesterId, { notification: true });
 
     await this.kafkaProducer.publishNotificationPush({
-      notification_id: randomUUID(),
+      notification_id: notification._id.toString(),
       recipient_id:    event.requesterId,
       actor_id:        event.addresseeId,
       actor_username:  event.addresseeUsername ?? event.addresseeId,

@@ -60,8 +60,13 @@ export class CommentCreatedHandler implements OnModuleInit {
     const mentions = (event.mentions ?? []).filter((uid) => uid !== event.user_id);
     await Promise.all(
       mentions.map(async (mentionedUserId) => {
-        // Persist notification to MongoDB so it appears in GET /notifications
-        await this.notificationsService.create({
+        // Persist notification to MongoDB so it appears in GET /notifications.
+        // The returned document's _id is reused as the WS push notification_id
+        // so the frontend's dedupe-by-id collapses the WS and HTTP copies of
+        // the same notification into a single card (otherwise a random UUID
+        // here would produce two entries — one from the live push and another
+        // from the historical load).
+        const notification = await this.notificationsService.create({
           user_id:        mentionedUserId,
           actor_id:       event.user_id,
           actor_username: event.username,
@@ -74,7 +79,7 @@ export class CommentCreatedHandler implements OnModuleInit {
         await this.notificationsService.incrementBadges(mentionedUserId, { notification: true });
         // Push via Kafka → ws-ms → WebSocket (for online users)
         await this.kafkaProducer.publishNotificationPush({
-          notification_id: randomUUID(),
+          notification_id: notification._id.toString(),
           recipient_id:    mentionedUserId,
           actor_id:        event.user_id,
           actor_username:  event.username,
