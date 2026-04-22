@@ -11,11 +11,16 @@ export default () => ({
     password: process.env.REDIS_PASSWORD ?? undefined,
   },
   kafka: {
-    broker:       process.env.KAFKA_BROKER          ?? 'localhost:9092',
-    groupIdAvro:  process.env.KAFKA_GROUP_ID_AVRO   ?? 'realtime-api-ms-avro',
-    groupIdJson:  process.env.KAFKA_GROUP_ID_JSON    ?? 'realtime-api-ms-json',
+    broker:           process.env.KAFKA_BROKER            ?? 'localhost:9092',
+    groupIdAvro:      process.env.KAFKA_GROUP_ID_AVRO      ?? 'realtime-api-ms-avro',
+    groupIdJson:      process.env.KAFKA_GROUP_ID_JSON      ?? 'realtime-api-ms-json',
+    securityProtocol: process.env.KAFKA_SECURITY_PROTOCOL  ?? 'PLAINTEXT',
+    apiKey:           process.env.CONFLUENT_API_KEY         ?? '',
+    apiSecret:        process.env.CONFLUENT_API_SECRET      ?? '',
   },
   schemaRegistry: {
-    url: process.env.SCHEMA_REGISTRY_URL ?? '',
+    url:       process.env.SCHEMA_REGISTRY_URL        ?? '',
+    apiKey:    process.env.SCHEMA_REGISTRY_API_KEY    ?? '',
+    apiSecret: process.env.SCHEMA_REGISTRY_API_SECRET ?? '',
   },
 });
