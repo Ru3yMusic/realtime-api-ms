@@ -1,7 +1,6 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { EMPTY, from } from 'rxjs';
 import { catchError, mergeMap } from 'rxjs/operators';
-import { randomUUID } from 'crypto';
 import { KafkaStreamsService } from '../../kafka/kafka-streams.service';
 import { KafkaProducerService } from '../../kafka/kafka.producer';
 import { NotificationsService } from '../notifications.service';

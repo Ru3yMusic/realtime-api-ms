@@ -38,9 +38,9 @@ export function normalisePem(raw: string): string {
   if (!trimmed) return '';
 
   if (trimmed.includes('-----BEGIN')) {
-    return trimmed.replace(/\\n/g, '\n');
+    return trimmed.replaceAll(String.raw`\n`, '\n');
   }
 
-  const body = trimmed.replace(/\s+/g, '').match(/.{1,64}/g)?.join('\n') ?? '';
+  const body = trimmed.replaceAll(/\s+/g, '').match(/.{1,64}/g)?.join('\n') ?? '';
   return `-----BEGIN PUBLIC KEY-----\n${body}\n-----END PUBLIC KEY-----\n`;
 }
