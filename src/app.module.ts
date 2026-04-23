@@ -22,7 +22,7 @@ import { JwtGuard } from './common/guards/jwt.guard';
       load: [configuration],
       envFilePath: resolve(__dirname, '..', '.env'),
     }),
-    MongooseModule.forRoot(process.env.MONGODB_URI ?? 'mongodb://localhost:27017/realtime_db'),
+    MongooseModule.forRoot(process.env.MONGODB_URI ?? ''),
     SchemaRegistryModule,
     RedisModule,
     KafkaModule,

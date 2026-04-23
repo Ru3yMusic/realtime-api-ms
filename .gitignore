@@ -5,7 +5,7 @@ node_modules/
 # Env
 .env
 # *.env.local
-
+coverage/
 # OS
 .DS_Store
 Thumbs.db

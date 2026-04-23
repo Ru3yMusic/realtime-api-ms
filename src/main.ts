@@ -12,18 +12,20 @@ import { GlobalExceptionFilter } from './exception/global-exception.filter';
 const normalizeOtelEndpoint = (endpoint: string): string => endpoint.replace(/\/$/, '');
 
 async function bootstrap() {
-  const otelEndpoint = normalizeOtelEndpoint(
-    process.env.OTEL_EXPORTER_OTLP_ENDPOINT ?? 'http://localhost:4318',
-  );
+  const otelEndpointRaw = process.env.OTEL_EXPORTER_OTLP_ENDPOINT;
+  const otelEndpoint = otelEndpointRaw ? normalizeOtelEndpoint(otelEndpointRaw) : '';
+  const otelSdk = otelEndpoint
+    ? new NodeSDK({
+        traceExporter: new OTLPTraceExporter({
+          url: `${otelEndpoint}/v1/traces`,
+        }),
+        instrumentations: [getNodeAutoInstrumentations()],
+      })
+    : null;
 
-  const otelSdk = new NodeSDK({
-    traceExporter: new OTLPTraceExporter({
-      url: `${otelEndpoint}/v1/traces`,
-    }),
-    instrumentations: [getNodeAutoInstrumentations()],
-  });
-
-  otelSdk.start();
+  if (otelSdk) {
+    otelSdk.start();
+  }
   collectDefaultMetrics();
 
   const app = await NestFactory.create(AppModule);
@@ -56,7 +58,9 @@ async function bootstrap() {
   await app.listen(port);
 
   const shutdown = async () => {
-    await otelSdk.shutdown();
+    if (otelSdk) {
+      await otelSdk.shutdown();
+    }
   };
 
   process.on('SIGINT', shutdown);

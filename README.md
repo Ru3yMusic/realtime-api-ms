@@ -191,11 +191,11 @@ Badges are incremented on notification creation and cleared on read-all / explic
 | Variable | Default | Description |
 |---|---|---|
 | `PORT` | `3002` | HTTP port |
-| `MONGODB_URI` | `mongodb://localhost:27017/realtime_db` | MongoDB connection string |
-| `REDIS_HOST` | `localhost` | Redis hostname |
+| `MONGODB_URI` | _(required)_ | MongoDB connection string |
+| `REDIS_HOST` | _(required)_ | Redis hostname |
 | `REDIS_PORT` | `6379` | Redis port |
 | `REDIS_PASSWORD` | — | Redis AUTH password |
-| `KAFKA_BROKER` | `localhost:9092` | Kafka broker address |
+| `KAFKA_BROKER` | _(required)_ | Kafka broker address |
 | `KAFKA_GROUP_ID_AVRO` | `realtime-api-ms-avro` | Consumer group for Avro topics |
 | `KAFKA_GROUP_ID_JSON` | `realtime-api-ms-json` | Consumer group for JSON topics |
 | `SCHEMA_REGISTRY_URL` | _(empty)_ | Confluent Schema Registry URL — empty = dev mode |
