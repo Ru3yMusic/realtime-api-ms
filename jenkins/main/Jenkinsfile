@@ -62,7 +62,11 @@ pipeline {
           sh """
             ssh -o StrictHostKeyChecking=no ${DEPLOY_USER}@${DEPLOY_HOST} '
               docker pull ${DOCKER_IMAGE}:${DOCKER_TAG} &&
-              export REALTIME_API_TAG=${DOCKER_TAG} &&
+              if grep -q "^REALTIME_API_TAG=" .env.prod; then
+                sed -i "s|^REALTIME_API_TAG=.*|REALTIME_API_TAG=${DOCKER_TAG}|" .env.prod;
+              else
+                echo "REALTIME_API_TAG=${DOCKER_TAG}" >> .env.prod;
+              fi &&
               docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --no-deps realtime-api-ms
             '
           """
