@@ -17,13 +17,22 @@ export class CommentsController {
 
   @Get()
   async list(
-    @Query('songId')    songId: string,
-    @Query('stationId') stationId: string,
-    @Query('sort')      sort: 'popular' | 'recent' = 'recent',
-    @Query('page')      page = '0',
-    @Query('size')      size = '20',
+    @Query('songId')         songId: string,
+    @Query('stationId')      stationId: string,
+    @Query('sort')           sort: 'popular' | 'recent' = 'recent',
+    @Query('page')           page = '0',
+    @Query('size')           size = '20',
+    @Query('currentVersion') currentVersion?: string,
   ) {
-    const { data, total } = await this.service.findBySong({ songId, stationId, sort, page: +page, size: +size });
+    const versionNum = currentVersion !== undefined ? Number(currentVersion) : undefined;
+    const { data, total } = await this.service.findBySong({
+      songId,
+      stationId,
+      sort,
+      page: +page,
+      size: +size,
+      currentVersion: Number.isFinite(versionNum) ? versionNum : undefined,
+    });
     return { content: data, total, page: +page, size: +size };
   }
 

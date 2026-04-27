@@ -50,7 +50,7 @@ describe('CommentLikedHandler', () => {
       decrementLikes: jest.fn().mockResolvedValue(undefined),
     };
     notificationsService = {
-      create:           jest.fn().mockResolvedValue(undefined),
+      create:           jest.fn().mockResolvedValue({ _id: 'notif-1' }),
       incrementBadges:  jest.fn().mockResolvedValue(undefined),
     };
     kafkaProducer = {
@@ -100,7 +100,12 @@ describe('CommentLikedHandler', () => {
         type:           NotificationEventType.COMMENT_REACTION,
       }),
     );
-    expect(kafkaProducer.publishNotificationPush).toHaveBeenCalled();
+    expect(kafkaProducer.publishNotificationPush).toHaveBeenCalledWith(
+      expect.objectContaining({
+        notification_id: 'notif-1',
+        recipient_id: 'author-1',
+      }),
+    );
   });
 
   it('does NOT notify on self-like (liker === author)', async () => {

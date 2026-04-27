@@ -6,11 +6,17 @@ import { CommentLike, CommentLikeDocument } from './schemas/comment-like.schema'
 import { CommentCreatedEvent } from '../common/types/avro-events.types';
 
 export interface CommentsQuery {
-  songId:    string;
-  stationId: string;
-  sort?:     'popular' | 'recent';
-  page?:     number;
-  size?:     number;
+  songId:         string;
+  stationId:      string;
+  sort?:          'popular' | 'recent';
+  page?:          number;
+  size?:          number;
+  /**
+   * Current station session version. When provided, only comments saved
+   * under that version are returned — older comments (from a previous
+   * audience that already left) stay hidden. Omit to return all (legacy).
+   */
+  currentVersion?: number;
 }
 
 @Injectable()
@@ -38,6 +44,7 @@ export class CommentsService {
           content:          event.content,
           mentions:         event.mentions ?? [],
           likes_count:      0,
+          session_version:  event.session_version ?? 1,
         },
       },
       { upsert: true, new: true },
@@ -74,7 +81,10 @@ export class CommentsService {
   }
 
   async findBySong(query: CommentsQuery): Promise<{ data: CommentDocument[]; total: number }> {
-    const filter = { song_id: query.songId, station_id: query.stationId };
+    const filter: Record<string, unknown> = { song_id: query.songId, station_id: query.stationId };
+    if (typeof query.currentVersion === 'number') {
+      filter.session_version = query.currentVersion;
+    }
     const sort   = query.sort === 'popular' ? { likes_count: -1 } : { created_at: -1 };
     const skip   = (query.page ?? 0) * (query.size ?? 20);
     const limit  = query.size ?? 20;

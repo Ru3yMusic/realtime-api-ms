@@ -36,6 +36,7 @@ export interface CommentCreatedEvent {
   content:           string;
   mentions:          string[];
   timestamp:         number;
+  session_version:   number;
 }
 
 export interface CommentLikedEvent {

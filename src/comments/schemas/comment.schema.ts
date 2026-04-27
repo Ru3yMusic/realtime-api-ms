@@ -36,6 +36,16 @@ export class Comment {
   @Prop({ default: 0, index: true })
   likes_count: number;
 
+  /**
+   * Station session version at the moment this comment was created.
+   * Bumped server-side when the listener count drops to 0 (everyone left
+   * the station). The GET endpoint filters by the current version, so
+   * comments from previous sessions become invisible to the new audience
+   * — soft-delete via versioning instead of hard delete.
+   */
+  @Prop({ required: true, default: 1, index: true })
+  session_version: number;
+
   created_at: Date;
   updated_at: Date;
 }
@@ -43,3 +53,4 @@ export class Comment {
 export const CommentSchema = SchemaFactory.createForClass(Comment);
 CommentSchema.index({ created_at: -1 });
 CommentSchema.index({ likes_count: -1 });
+CommentSchema.index({ station_id: 1, song_id: 1, session_version: 1, created_at: -1 });

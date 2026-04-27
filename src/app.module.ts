@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
 import { APP_GUARD } from '@nestjs/core';
 import { resolve } from 'node:path';
@@ -22,7 +22,17 @@ import { JwtGuard } from './common/guards/jwt.guard';
       load: [configuration],
       envFilePath: resolve(__dirname, '..', '.env'),
     }),
-    MongooseModule.forRoot(process.env.MONGODB_URI ?? ''),
+    // forRootAsync con ConfigService — así el fail-fast de configuration.ts
+    // (required('MONGODB_URI', ...)) corre ANTES de que mongoose intente
+    // conectar. Antes esto leía process.env.MONGODB_URI directo y bypaseaba
+    // la validación.
+    MongooseModule.forRootAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => ({
+        uri: config.get<string>('mongodb.uri'),
+      }),
+    }),
     SchemaRegistryModule,
     RedisModule,
     KafkaModule,

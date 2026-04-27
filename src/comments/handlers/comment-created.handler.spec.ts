@@ -17,6 +17,7 @@ function makeEvent(overrides: Partial<CommentCreatedEvent> = {}): CommentCreated
     content: 'hello @bob',
     mentions: ['user-2'],
     timestamp: 1_700_000_000_000,
+    session_version: 1,
     ...overrides,
   };
 }
