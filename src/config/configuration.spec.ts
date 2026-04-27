@@ -7,12 +7,20 @@ describe('configuration', () => {
     return mod.default;
   };
 
+  const setRequiredEnv = () => {
+    process.env.JWT_PUBLIC_KEY = 'test-pub-key';
+    process.env.MONGODB_URI    = 'mongodb://localhost:27017/test';
+    process.env.REDIS_HOST     = 'localhost';
+    process.env.KAFKA_BROKER   = 'localhost:9092';
+  };
+
   afterEach(() => {
     process.env = { ...originalEnv };
     jest.resetModules();
   });
 
   it('returns defaults when env vars are not provided', async () => {
+    setRequiredEnv();
     delete process.env.PORT;
     delete process.env.REDIS_PORT;
     delete process.env.KAFKA_CONSUMER_GROUP_SUFFIX;
@@ -29,6 +37,7 @@ describe('configuration', () => {
   });
 
   it('appends the consumer group suffix when configured', async () => {
+    setRequiredEnv();
     process.env.KAFKA_CONSUMER_GROUP_SUFFIX = 'staging';
     process.env.KAFKA_GROUP_ID_AVRO = 'custom-avro';
     process.env.KAFKA_GROUP_ID_JSON = 'custom-json';
