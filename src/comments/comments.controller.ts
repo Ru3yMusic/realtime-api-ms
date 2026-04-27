@@ -24,7 +24,7 @@ export class CommentsController {
     @Query('size')           size = '20',
     @Query('currentVersion') currentVersion?: string,
   ) {
-    const versionNum = currentVersion !== undefined ? Number(currentVersion) : undefined;
+    const versionNum = currentVersion === undefined ? undefined : Number(currentVersion);
     const { data, total } = await this.service.findBySong({
       songId,
       stationId,
