@@ -109,4 +109,195 @@ describe('KafkaConsumerService — DLQ delegation', () => {
     expect(mockSchemaRegistry.decode).not.toHaveBeenCalled();
     expect(mockProducer.publishToDlq).not.toHaveBeenCalled();
   });
+
+  // ── handleAvro success — dispatches into streams ──────────────────────────
+
+  it('handleAvro dispatches the decoded value into KafkaStreamsService', async () => {
+    mockSchemaRegistry.decode.mockReturnValue({ comment_id: 'c-1', content: 'hello' });
+
+    await (consumer as any).handleAvro(makeAvroPayload({ partition: 7 }));
+
+    expect(mockStreams.dispatch).toHaveBeenCalledWith(expect.objectContaining({
+      topic: 'realtime.comment.created',
+      partition: 7,
+      offset: '42',
+      key: 'user-123',
+      value: { comment_id: 'c-1', content: 'hello' },
+      timestamp: '1700000000000',
+    }));
+  });
+
+  it('handleAvro tolerates a null key (sets key=null in dispatch)', async () => {
+    mockSchemaRegistry.decode.mockReturnValue({});
+    const payload = makeAvroPayload();
+    payload.message.key = null as any;
+
+    await (consumer as any).handleAvro(payload);
+
+    expect(mockStreams.dispatch).toHaveBeenCalledWith(expect.objectContaining({ key: null }));
+  });
+
+  // ── handleJson ────────────────────────────────────────────────────────────
+
+  it('handleJson dispatches the parsed JSON value into streams', async () => {
+    const payload = {
+      topic: 'user.friend.request',
+      partition: 0,
+      message: {
+        offset: '1',
+        key: Buffer.from('key-1'),
+        value: Buffer.from(JSON.stringify({ requesterId: 'a', addresseeId: 'b', friendshipId: 'f' })),
+        timestamp: '1700000000000',
+        headers: {},
+        size: 0,
+      },
+    };
+
+    await (consumer as any).handleJson(payload);
+
+    expect(mockStreams.dispatch).toHaveBeenCalledWith(expect.objectContaining({
+      topic: 'user.friend.request',
+      value: { requesterId: 'a', addresseeId: 'b', friendshipId: 'f' },
+    }));
+  });
+
+  it('handleJson sends to DLQ when value is malformed JSON', async () => {
+    const payload = {
+      topic: 'user.friend.request',
+      partition: 0,
+      message: {
+        offset: '99',
+        key: null,
+        value: Buffer.from('not-json{{{'),
+        timestamp: '0',
+        headers: {},
+        size: 0,
+      },
+    };
+
+    await (consumer as any).handleJson(payload);
+
+    expect(mockProducer.publishToDlq).toHaveBeenCalledWith(
+      'user.friend.request',
+      payload.message,
+      expect.any(Error),
+    );
+    expect(mockStreams.dispatch).not.toHaveBeenCalled();
+  });
+
+  it('handleJson early-returns when message.value is null', async () => {
+    const payload = {
+      topic: 'user.friend.request', partition: 0,
+      message: { offset: '0', key: null, value: null, timestamp: '0', headers: {}, size: 0 },
+    };
+
+    await (consumer as any).handleJson(payload as any);
+
+    expect(mockStreams.dispatch).not.toHaveBeenCalled();
+    expect(mockProducer.publishToDlq).not.toHaveBeenCalled();
+  });
+
+  // ── onModuleDestroy — graceful disconnect ────────────────────────────────
+
+  it('onModuleDestroy disconnects both consumers when present', async () => {
+    const avro = { disconnect: jest.fn().mockResolvedValue(undefined) };
+    const json = { disconnect: jest.fn().mockResolvedValue(undefined) };
+    (consumer as any).avroConsumer = avro;
+    (consumer as any).jsonConsumer = json;
+
+    await consumer.onModuleDestroy();
+
+    expect(avro.disconnect).toHaveBeenCalled();
+    expect(json.disconnect).toHaveBeenCalled();
+  });
+
+  it('onModuleDestroy is safe when consumers were never created (optional chaining)', async () => {
+    await expect(consumer.onModuleDestroy()).resolves.toBeUndefined();
+  });
+});
+
+// ===========================================================================
+// onModuleInit — Kafka client construction with mocked kafkajs
+// ===========================================================================
+
+const mockAvroConsumer = {
+  connect:    jest.fn().mockResolvedValue(undefined),
+  subscribe:  jest.fn().mockResolvedValue(undefined),
+  run:        jest.fn().mockResolvedValue(undefined),
+  disconnect: jest.fn().mockResolvedValue(undefined),
+};
+const mockJsonConsumer = {
+  connect:    jest.fn().mockResolvedValue(undefined),
+  subscribe:  jest.fn().mockResolvedValue(undefined),
+  run:        jest.fn().mockResolvedValue(undefined),
+  disconnect: jest.fn().mockResolvedValue(undefined),
+};
+
+const mockConsumerFactory = jest.fn();
+const mockKafkaCtor = jest.fn().mockImplementation(() => ({
+  consumer: mockConsumerFactory,
+}));
+
+jest.mock('kafkajs', () => ({
+  Kafka: function Kafka(config: unknown) { return mockKafkaCtor(config); },
+}));
+
+describe('KafkaConsumerService — onModuleInit', () => {
+  let consumer: KafkaConsumerService;
+
+  const configValues: Record<string, string> = {
+    'kafka.broker': 'localhost:9092',
+    'kafka.securityProtocol': 'PLAINTEXT',
+    'kafka.apiKey': 'k',
+    'kafka.apiSecret': 's',
+    'kafka.groupIdAvro': 'api-ms-avro',
+    'kafka.groupIdJson': 'api-ms-json',
+  };
+
+  const config = {
+    get: jest.fn((key: string) => configValues[key]),
+  } as unknown as ConfigService;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockConsumerFactory
+      .mockReturnValueOnce(mockAvroConsumer)
+      .mockReturnValueOnce(mockJsonConsumer);
+    consumer = new KafkaConsumerService(
+      config,
+      { decode: jest.fn() } as any,
+      { dispatch: jest.fn() } as any,
+      { publishToDlq: jest.fn() } as any,
+    );
+  });
+
+  it('connects + subscribes both consumer groups (avro + json) on module init', async () => {
+    configValues['kafka.securityProtocol'] = 'PLAINTEXT';
+
+    await consumer.onModuleInit();
+
+    expect(mockKafkaCtor).toHaveBeenCalledWith(expect.objectContaining({
+      clientId: 'realtime-api-ms-consumer',
+      brokers: ['localhost:9092'],
+    }));
+    expect(mockAvroConsumer.connect).toHaveBeenCalled();
+    expect(mockAvroConsumer.subscribe).toHaveBeenCalledWith(
+      expect.objectContaining({ fromBeginning: false }),
+    );
+    expect(mockJsonConsumer.connect).toHaveBeenCalled();
+    expect(mockJsonConsumer.subscribe).toHaveBeenCalledWith(
+      expect.objectContaining({ fromBeginning: false }),
+    );
+  });
+
+  it('adds SASL config when securityProtocol is SASL_SSL', async () => {
+    configValues['kafka.securityProtocol'] = 'SASL_SSL';
+
+    await consumer.onModuleInit();
+
+    expect(mockKafkaCtor).toHaveBeenCalledWith(expect.objectContaining({
+      ssl: true,
+      sasl: { mechanism: 'plain', username: 'k', password: 's' },
+    }));
+  });
 });
